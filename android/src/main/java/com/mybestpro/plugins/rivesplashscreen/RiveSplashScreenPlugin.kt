@@ -71,7 +71,7 @@ class RiveSplashScreenPlugin : Plugin() {
             "fitheight" -> Fit.FIT_HEIGHT
             "none" -> Fit.NONE
             "scaledown" -> Fit.SCALE_DOWN
-            // "layout" -> Fit.LAYOUT
+            "layout" -> Fit.LAYOUT
             else -> Fit.COVER
         }
 

@@ -18,69 +18,51 @@ public class RiveSplashScreenPlugin: CAPPlugin {
     
     func setupRiveView() {
         // 1. Récupération de la configuration
-        let assetName = getConfigValue("assetName") as? String ?? ""
-        let fitString = getConfigValue("fit") as? String ?? "cover"
-        
+        let config = getConfig()
+        let assetName = config.getString("assetName") ?? ""
+        let fitString = config.getString("fit") ?? "cover"
+
         // Sécurité : si pas de nom de fichier, on arrête
         if assetName.isEmpty { return }
-        
-        // 1. Trouver le fichier dans le dossier "public" (géré par Capacitor)
-        // Capacitor place le contenu du dossier 'dist'/'www' dans un dossier 'public' à la racine du bundle
-        guard let url = Bundle.main.url(forResource: "public/\(assetName)", withExtension: "riv") else {
-            print("❌ RiveSplashScreen: Fichier introuvable dans le bundle public: public/\(assetName).riv")
-            return
-        }
 
-        // 2. Charger les données binaires du fichier
-        guard let data = try? Data(contentsOf: url) else {
-            print("❌ RiveSplashScreen: Impossible de lire les données du fichier")
-            return
-        }
-
-        // 3. Initialiser Rive avec ces données (RiveFile)
-        guard let riveFile = try? RiveFile(data: data) else {
-            print("❌ RiveSplashScreen: Le fichier .riv semble corrompu ou invalide")
-            return
-        }
-
-        // 4. Mapping du mode Fit (conforme à la doc Rive Runtime)
-        let fit: RiveRuntime.Fit
+        // 2. Mapping du mode Fit (conforme à la doc Rive Runtime)
+        let fit: RiveFit
         switch fitString.lowercased() {
         case "contain": fit = .contain
         case "fill": fit = .fill
         case "fitwidth": fit = .fitWidth
         case "fitheight": fit = .fitHeight
-        case "none": fit = .none
+        case "none": fit = .noFit
         case "scaledown": fit = .scaleDown
         case "layout": fit = .layout
         default: fit = .cover
         }
 
-        // 5. Initialisation du ViewModel (on conserve la référence)
+        // 3. Initialisation du ViewModel avec le nom du fichier
+        // Capacitor place le contenu dans le dossier 'public' du bundle
         let viewModel = RiveViewModel(
-            riveFile: riveFile,
+            fileName: "public/\(assetName)",
             fit: fit,
-            alignment: .center,
-            autoPlay: true
+            alignment: .center
         )
         self.riveViewModel = viewModel
 
-        // 6. Création de la vue (RiveView est une sous-classe de UIView)
+        // 4. Création de la vue (RiveView est une sous-classe de UIView)
         let view = viewModel.createRiveView()
         view.translatesAutoresizingMaskIntoConstraints = false
-        view.backgroundColor = UIColor.white // Pour éviter la transparence par défaut
-        
+        view.backgroundColor = UIColor.white
+
         self.riveView = view
 
-        // 7. Injection dans la hiérarchie de Capacitor (par-dessus la WebView)
+        // 5. Injection dans la hiérarchie de Capacitor (par-dessus la WebView)
         guard let bridge = self.bridge, let viewController = bridge.viewController else {
-            print("❌ RiveSplashScreen: Impossible d'accéder au ViewController de Capacitor")
+            print("RiveSplashScreen: Impossible d'accéder au ViewController de Capacitor")
             return
         }
 
         viewController.view.addSubview(view)
 
-        // 8. Contraintes Auto Layout (plein écran)
+        // 6. Contraintes Auto Layout (plein écran)
         NSLayoutConstraint.activate([
             view.topAnchor.constraint(equalTo: viewController.view.topAnchor),
             view.bottomAnchor.constraint(equalTo: viewController.view.bottomAnchor),

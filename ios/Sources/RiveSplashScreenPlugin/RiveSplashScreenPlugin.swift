@@ -8,8 +8,13 @@ public class RiveSplashScreenPlugin: CAPPlugin {
 
     private var riveViewModel: RiveViewModel?
     private var riveView: RiveView?
-    
+
     override public func load() {
+        // Force CoreGraphics renderer on simulator (Metal not supported)
+        #if targetEnvironment(simulator)
+        RenderContextManager.shared().defaultRenderer = .cgRenderer
+        #endif
+
         // L'UI doit toujours être modifiée sur le Main Thread
         DispatchQueue.main.async {
             self.setupRiveView()

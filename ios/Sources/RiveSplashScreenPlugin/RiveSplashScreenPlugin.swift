@@ -12,7 +12,7 @@ public class RiveSplashScreenPlugin: CAPPlugin {
     // Configure renderer at class load time (before any Rive initialization)
     private static let configureRenderer: Void = {
         #if targetEnvironment(simulator)
-        RenderContextManager.shared().defaultRenderer = RendererType.coreGraphicsRenderer
+        RenderContextManager.shared().defaultRenderer = .coreGraphics
         #endif
     }()
 

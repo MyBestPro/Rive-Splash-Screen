@@ -6,6 +6,9 @@ import android.graphics.Color
 import android.util.Log
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.core.splashscreen.SplashScreen
+import androidx.core.splashscreen.SplashScreenViewProvider
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.File as RiveFile
 import app.rive.runtime.kotlin.core.Fit
@@ -32,6 +35,19 @@ class RiveSplashScreenPlugin : Plugin() {
 
         // Initialisation du runtime Rive
         Rive.init(context)
+
+        // On exécute ceci sur le thread principal car on touche à l'UI
+        activity?.let { act ->
+            act.runOnUiThread {
+                // On appelle la méthode sur l'activité 'act' sécurisée
+                val splashScreen = act.installSplashScreen()
+
+                // On tue l'animation de sortie
+                splashScreen.setOnExitAnimationListener { provider: SplashScreenViewProvider ->
+                    provider.remove()
+                }
+            }
+        }
 
         activity.runOnUiThread {
             setupRiveView()

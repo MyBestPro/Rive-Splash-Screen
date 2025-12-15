@@ -1,3 +1,4 @@
 export interface RiveSplashScreenPlugin {
-  echo(options: { value: string }): Promise<{ value: string }>;
+  // Masque le splash screen avec un fondu
+  hide(options?: { fadeDuration?: number }): Promise<void>;
 }

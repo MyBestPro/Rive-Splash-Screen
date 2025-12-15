@@ -10,8 +10,7 @@ import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.File as RiveFile
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.Alignment
-import app.rive.runtime.kotlin.RiveInitializer
-import androidx.startup.AppInitializer
+import app.rive.runtime.kotlin.core.Rive
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -31,9 +30,8 @@ class RiveSplashScreenPlugin : Plugin() {
     override fun load() {
         super.load()
 
-        // Initialisation explicite du runtime Rive via AppInitializer
-        AppInitializer.getInstance(context)
-            .initializeComponent(RiveInitializer::class.java)
+        // Initialisation du runtime Rive
+        Rive.init(context)
 
         activity.runOnUiThread {
             setupRiveView()
@@ -86,9 +84,8 @@ class RiveSplashScreenPlugin : Plugin() {
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT
             )
-            setBackgroundColor(Color.WHITE)
 
-            // Chargement avec setRiveFile (méthode correcte pour les assets)
+            // Chargement avec setRiveFile
             setRiveFile(
                 file = riveFile!!,
                 fit = fitMode,

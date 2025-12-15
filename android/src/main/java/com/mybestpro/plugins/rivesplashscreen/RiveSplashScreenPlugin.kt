@@ -10,6 +10,8 @@ import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.File as RiveFile
 import app.rive.runtime.kotlin.core.Fit
 import app.rive.runtime.kotlin.core.Alignment
+import app.rive.runtime.kotlin.RiveInitializer
+import androidx.startup.AppInitializer
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
@@ -29,7 +31,10 @@ class RiveSplashScreenPlugin : Plugin() {
     override fun load() {
         super.load()
 
-        // L'initialisation de Rive est automatique via androidx.startup
+        // Initialisation explicite du runtime Rive via AppInitializer
+        AppInitializer.getInstance(context)
+            .initializeComponent(RiveInitializer::class.java)
+
         activity.runOnUiThread {
             setupRiveView()
         }

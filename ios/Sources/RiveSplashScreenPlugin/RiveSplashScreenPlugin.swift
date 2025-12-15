@@ -3,90 +3,126 @@ import Capacitor
 import RiveRuntime
 import UIKit
 
-@objc(RiveSplashScreenPlugin)
-public class RiveSplashScreenPlugin: CAPPlugin {
+// MARK: - RiveSplashHelper
+/// Helper statique pour afficher le splash screen Rive immédiatement au lancement.
+/// Doit être appelé dans l'AppDelegate avant le return de didFinishLaunchingWithOptions.
+public class RiveSplashHelper {
 
-    private var riveViewModel: RiveViewModel?
-    private var riveView: RiveView?
+    /// Référence interne à la vue Rive du splash screen
+    internal static var splashView: RiveView?
 
-    // Configure renderer at class load time (before any Rive initialization)
-    private static let configureRenderer: Void = {
-        #if targetEnvironment(simulator)
-        RenderContextManager.shared().defaultRenderer = .coreGraphics
-        #endif
-    }()
+    /// Référence au ViewModel pour garder l'animation en vie
+    private static var viewModel: RiveViewModel?
 
-    override public func load() {
-        // Ensure renderer is configured
-        _ = Self.configureRenderer
-
-        // L'UI doit toujours être modifiée sur le Main Thread
-        DispatchQueue.main.async {
-            self.setupRiveView()
-        }
-    }
-    
-    func setupRiveView() {
-        // 1. Récupération de la configuration
-        let config = getConfig()
-        let assetName = config.getString("assetName") ?? ""
-        let fitString = config.getString("fit") ?? "cover"
-
-        // Sécurité : si pas de nom de fichier, on arrête
-        if assetName.isEmpty { return }
-
-        // 2. Mapping du mode Fit (conforme à la doc Rive Runtime)
-        let fit: RiveFit
-        switch fitString.lowercased() {
-        case "contain": fit = .contain
-        case "fill": fit = .fill
-        case "fitwidth": fit = .fitWidth
-        case "fitheight": fit = .fitHeight
-        case "none": fit = .noFit
-        case "scaledown": fit = .scaleDown
-        case "layout": fit = .layout
-        default: fit = .cover
-        }
-
-        // 3. Initialisation du ViewModel avec le nom du fichier
-        // Capacitor place le contenu dans le dossier 'public' du bundle
-        let viewModel = RiveViewModel(
-            fileName: "public/\(assetName)",
-            fit: fit,
-            alignment: .center
-        )
-        self.riveViewModel = viewModel
-
-        // 4. Création de la vue (RiveView est une sous-classe de UIView)
-        let view = viewModel.createRiveView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.backgroundColor = UIColor.white
-
-        self.riveView = view
-
-        // 5. Injection dans la hiérarchie de Capacitor (par-dessus la WebView)
-        guard let bridge = self.bridge, let viewController = bridge.viewController else {
-            print("RiveSplashScreen: Impossible d'accéder au ViewController de Capacitor")
+    /// Affiche le splash screen Rive dans la window donnée.
+    ///
+    /// - Parameters:
+    ///   - window: La UIWindow principale de l'application
+    ///   - assetName: Le nom du fichier .riv (sans extension), ex: "public/splash_anim"
+    ///   - fit: Le mode d'ajustement Rive (par défaut .cover)
+    ///   - backgroundColor: La couleur de fond de la vue (par défaut .white)
+    @objc public static func show(
+        in window: UIWindow?,
+        assetName: String,
+        fit: RiveFit = .cover,
+        backgroundColor: UIColor = .white
+    ) {
+        guard let window = window else {
+            print("RiveSplashHelper: Window is nil, cannot show splash screen")
             return
         }
 
-        viewController.view.addSubview(view)
+        guard !assetName.isEmpty else {
+            print("RiveSplashHelper: assetName is empty, cannot show splash screen")
+            return
+        }
 
-        // 6. Contraintes Auto Layout (plein écran)
+        // Initialisation du ViewModel avec le nom du fichier
+        let riveViewModel = RiveViewModel(
+            fileName: assetName,
+            fit: fit,
+            alignment: .center
+        )
+        viewModel = riveViewModel
+
+        // Création de la vue Rive
+        let riveView = riveViewModel.createRiveView()
+        riveView.translatesAutoresizingMaskIntoConstraints = false
+        riveView.backgroundColor = backgroundColor
+
+        // Stockage dans la variable statique
+        splashView = riveView
+
+        // Ajout à la window (pas au ViewController)
+        window.addSubview(riveView)
+
+        // Contraintes AutoLayout pour le plein écran
         NSLayoutConstraint.activate([
-            view.topAnchor.constraint(equalTo: viewController.view.topAnchor),
-            view.bottomAnchor.constraint(equalTo: viewController.view.bottomAnchor),
-            view.leadingAnchor.constraint(equalTo: viewController.view.leadingAnchor),
-            view.trailingAnchor.constraint(equalTo: viewController.view.trailingAnchor)
+            riveView.topAnchor.constraint(equalTo: window.topAnchor),
+            riveView.bottomAnchor.constraint(equalTo: window.bottomAnchor),
+            riveView.leadingAnchor.constraint(equalTo: window.leadingAnchor),
+            riveView.trailingAnchor.constraint(equalTo: window.trailingAnchor)
         ])
+
+        // S'assurer que la vue est au-dessus de tout
+        window.bringSubviewToFront(riveView)
     }
 
+    /// Version avec String pour le fit (utile pour l'appel depuis Objective-C ou configuration)
+    @objc public static func show(
+        in window: UIWindow?,
+        assetName: String,
+        fitString: String,
+        backgroundColor: UIColor = .white
+    ) {
+        let fit = parseFit(from: fitString)
+        show(in: window, assetName: assetName, fit: fit, backgroundColor: backgroundColor)
+    }
+
+    /// Parse une chaîne de caractères en RiveFit
+    private static func parseFit(from string: String) -> RiveFit {
+        switch string.lowercased() {
+        case "contain": return .contain
+        case "fill": return .fill
+        case "fitwidth": return .fitWidth
+        case "fitheight": return .fitHeight
+        case "none": return .noFit
+        case "scaledown": return .scaleDown
+        case "layout": return .layout
+        default: return .cover
+        }
+    }
+
+    /// Nettoie les ressources du splash screen
+    internal static func cleanup() {
+        splashView?.removeFromSuperview()
+        splashView = nil
+        viewModel = nil
+    }
+}
+
+// MARK: - RiveSplashScreenPlugin
+/// Plugin Capacitor pour contrôler le splash screen Rive depuis JavaScript.
+/// Note: L'affichage initial doit être fait via RiveSplashHelper dans l'AppDelegate.
+@objc(RiveSplashScreenPlugin)
+public class RiveSplashScreenPlugin: CAPPlugin, CAPBridgedPlugin {
+
+    public let identifier = "RiveSplashScreenPlugin"
+    public let jsName = "RiveSplashScreen"
+    public let pluginMethods: [CAPPluginMethod] = [
+        CAPPluginMethod(name: "hide", returnType: CAPPluginReturnPromise)
+    ]
+
+    /// Cache la vue splash screen avec une animation de fade-out.
+    ///
+    /// - Parameter call: L'appel Capacitor avec option `fadeDuration` en millisecondes (défaut: 400)
     @objc func hide(_ call: CAPPluginCall) {
         let durationMs = call.getDouble("fadeDuration") ?? 400
         let durationSec = durationMs / 1000.0
 
         DispatchQueue.main.async {
-            guard let view = self.riveView else {
+            guard let view = RiveSplashHelper.splashView else {
+                // Pas de vue à cacher, on résout quand même
                 call.resolve()
                 return
             }
@@ -94,19 +130,10 @@ public class RiveSplashScreenPlugin: CAPPlugin {
             UIView.animate(withDuration: durationSec, animations: {
                 view.alpha = 0
             }) { _ in
-                self.cleanup()
+                // Nettoyage des ressources
+                RiveSplashHelper.cleanup()
                 call.resolve()
             }
         }
-    }
-
-    deinit {
-        cleanup()
-    }
-
-    private func cleanup() {
-        riveView?.removeFromSuperview()
-        riveView = nil
-        riveViewModel = nil
     }
 }
